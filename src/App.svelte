@@ -4,6 +4,7 @@
     let socket;
     const accessKey = 'U4ihy6aaUwyN-kkeN_JMpC9A6HN3432FQmym_eAjc-E';
     let endplay = false;
+
     async function getFirstUnsplashPhotoByTag(tag) {
         try {
             const response = await fetch(`https://api.unsplash.com/search/photos?query=${tag}&per_page=1`, {
@@ -517,7 +518,7 @@
     });
 
     const handleReceivedEvent = (data) => {
-        if(endplay) return;
+        if (endplay) return;
         try {
             const index = data.index;
             if (index >= 0 && index < combinedArray.length) {
@@ -549,7 +550,11 @@
     };
 
     const reloadBoard = () => {
-        window.location.href = 'http://' + window.location.host
+        const userConfirmed = confirm('Czy na pewno chcesz wygenerować nową tablice?');
+        if (userConfirmed) {
+            window.location.href = 'http://' + window.location.host;
+
+        }
     };
 
     const copyToClipboard = async () => {
@@ -562,7 +567,7 @@
     };
 
     const handleClick = async (index) => {
-        if(endplay) return;
+        if (endplay) return;
         if (!combinedArray[index].clicked) {
             combinedArray[index].clicked = true;
             const imageUrl = await getFirstUnsplashPhotoByTag(combinedArray[index].english);
@@ -585,7 +590,7 @@
     <p class="result-blue {blue > red ? 'active' : ''}"><strong>{blue} </strong>&nbsp;/ 8</p>
     <p class="result-red {red > red ? 'active' : ''}"><strong>{red} </strong>&nbsp;/ 9</p>
 </header>
-<div class="board key" class:key={key} class:end={endplay}>
+<div class="board key" class:end={endplay} class:key={key}>
     {#each Array(5) as _, rowIndex}
         {#each Array(5) as _, colIndex}
             <div class="card">
@@ -650,6 +655,8 @@
 
     .board {
         display: grid;
+        margin: auto;
+        width: 95vw;
         gap: 12px;
         grid-template-columns: repeat(5, 1fr);
         grid-template-rows: repeat(5, 1fr);
@@ -662,8 +669,6 @@
 
     .card {
         transition: all 0.3s cubic-bezier(.25, .8, .25, 1);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-
         border-radius: 12px;
         font-family: Calibri;
         background-color: #c1aa92;
@@ -672,10 +677,47 @@
         overflow: hidden;
         border: 0;
     }
-
-    .card:hover {
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    .card:hover button {
+        color: #fff;
     }
+    .card:hover {
+
+        --border-angle: 0turn;
+        --main-bg: conic-gradient(
+                from var(--border-angle),
+                #213,
+                #112 5%,
+                #112 60%,
+                #213 95%
+        );
+        border: solid 5px transparent;
+        border-radius: 12px;
+        --gradient-border: conic-gradient(from var(--border-angle), transparent 25%, #08f, #f03 99%, transparent);
+        background: var(--main-bg) padding-box, var(--gradient-border) border-box, var(--main-bg) border-box;
+        background-position: center center;
+        -webkit-animation: bg-spin 3s linear infinite;
+        animation: bg-spin 3s linear infinite;
+    }
+
+    @-webkit-keyframes bg-spin {
+        to {
+            --border-angle: 1turn;
+        }
+    }
+
+    @keyframes bg-spin {
+        to {
+            --border-angle: 1turn;
+        }
+    }
+
+
+    @property --border-angle {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0turn;
+    }
+
 
     .card button[disabled] {
         transition: none !important;
@@ -684,7 +726,6 @@
     }
 
     .card button {
-        transition: all 0.2s ease;
         aspect-ratio: 1;
         width: 90%;
         margin: 5% auto;
@@ -698,8 +739,9 @@
 
 
     .card button:not(.clicked):hover {
-        background-color: rgba(255, 255, 255, 0.2);
         inset: 6px;
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
         border-radius: 50%;
     }
 
@@ -731,6 +773,11 @@
 
     .key button {
         color: transparent !important;
+    }
+
+    .key .class-0, .class-0.clicked {
+        color: #fff;
+        background-color: rgba(0, 0, 0, 0.1);
     }
 
     .key .class-1, .class-1.clicked {
