@@ -584,15 +584,17 @@
     {#each Array(5) as _, rowIndex}
         <tr>
             {#each Array(5) as _, colIndex}
-                <td
-                        on:click={() => handleClick(rowIndex * 5 + colIndex)}
-                        class="class-{combinedArray[rowIndex * 5 + colIndex].value} {combinedArray[rowIndex * 5 + colIndex].clicked ? 'clicked' : ''}">
+                <td>
+                    <button
+                            on:click={() => handleClick(rowIndex * 5 + colIndex)}
+                            class="class-{combinedArray[rowIndex * 5 + colIndex].value} {combinedArray[rowIndex * 5 + colIndex].clicked ? 'clicked' : ''}">
                     <span>{combinedArray[rowIndex * 5 + colIndex].word}</span>
                     {#if combinedArray[rowIndex * 5 + colIndex].clicked}
                         {#if (combinedArray[rowIndex * 5 + colIndex].image)}
                             <img src={combinedArray[rowIndex * 5 + colIndex].image}>
                         {/if}
                     {/if}
+                    </button>
                 </td>
             {/each}
         </tr>
@@ -644,26 +646,45 @@
     }
 
     table {
-        width: 100%;
+        width: 80%;
         margin: auto;
-        height: 80vh;
         border-spacing: 12px;
     }
 
     td {
         width: 20% !important;
-        height: 20%;
-        font-size: 2vh;
-        text-transform: uppercase;
+        border-radius: 12px;
         font-family: Calibri;
         background-color: #c1aa92;
         text-align: center;
         position: relative;
         overflow: hidden;
         border: 0;
-        border-radius: 5px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-        transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    }
+
+    td button {
+        transition: all 0.2s ease;
+        aspect-ratio: 1;
+        width: 90%;
+        margin: 5% auto;
+        border: 0;
+        background-color: transparent;
+        cursor: pointer;
+        font-size: 18px;
+        text-transform: uppercase;
+        border-radius: 24px;
+    }
+
+
+
+    td button:not(.clicked):hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        inset: 6px;
+        border-radius: 50%;
+    }
+
+    td button.clicked {
+        cursor: not-allowed;
 
     }
 
@@ -674,33 +695,26 @@
     }
 
     td img {
+        display: none;
         position: absolute;
-        inset: 0;
-        width: calc(100% - 12px);
-        height: calc(100% - 12px);
+        width: 100%;
+        height: 100%;
         opacity: 1;
-        border: 6px solid #c1aa92;
         z-index: 1;
         object-fit: cover;
         object-position: center;
     }
 
-    td:hover {
-        cursor: pointer;
-        background-color: #dedede;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-    }
-
-    td:hover span {
-        transform: scale(1.1);
-    }
-
-
     .class-0 img {
         filter: grayscale(1);
     }
 
+    .key button {
+        color: transparent !important;
+    }
+
     .key .class-1, .class-1.clicked {
+        color: #fff;
         background-color: #0475aa;
     }
 
@@ -709,6 +723,7 @@
     }
 
     .key .class-2, .class-2.clicked {
+        color: #fff;
         background-color: #cd171d;
     }
 
@@ -718,6 +733,7 @@
 
     .key .class-3, .class-3.clicked {
         background-color: #000;
+        color: #fff;
     }
 
     .class-3 img {
