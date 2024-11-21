@@ -3,7 +3,7 @@
 
     let socket;
     const accessKey = 'U4ihy6aaUwyN-kkeN_JMpC9A6HN3432FQmym_eAjc-E';
-
+    let endplay = false;
     async function getFirstUnsplashPhotoByTag(tag) {
         try {
             const response = await fetch(`https://api.unsplash.com/search/photos?query=${tag}&per_page=1`, {
@@ -517,21 +517,26 @@
     });
 
     const handleReceivedEvent = (data) => {
-        console.log(data);
+        if(endplay) return;
         try {
             const index = data.index;
             if (index >= 0 && index < combinedArray.length) {
                 combinedArray[index].clicked = true;
                 combinedArray[index].image = data.image || null; // Ensure image exists
 
-                if(combinedArray[index].value === 1) blue++;
-                if(combinedArray[index].value === 2) red++;
-                if(combinedArray[index].value === 3) alert('Przejebaliscie!');
+                if (combinedArray[index].value === 1) blue++;
+                if (combinedArray[index].value === 2) red++;
+                if (combinedArray[index].value === 3) {
+                    alert('Przejebaliscie!');
+                    endplay = true;
+                }
 
-                if(blue === 8) {
+                if (blue === 8) {
+                    endplay = true;
                     alert('Dzień dobry niebiescy');
                 }
-                if(red === 9) {
+                if (red === 9) {
+                    endplay = true;
                     alert('Dzień dobry czerwoni');
                 }
 
@@ -557,6 +562,7 @@
     };
 
     const handleClick = async (index) => {
+        if(endplay) return;
         if (!combinedArray[index].clicked) {
             combinedArray[index].clicked = true;
             const imageUrl = await getFirstUnsplashPhotoByTag(combinedArray[index].english);
@@ -576,31 +582,28 @@
 </script>
 
 <header>
-    <p class="result-blue"><strong>{blue} </strong>&nbsp;/ 8</p>
-    <p class="result-red"><strong>{red} </strong>&nbsp;/ 9</p>
+    <p class="result-blue {blue > red ? 'active' : ''}"><strong>{blue} </strong>&nbsp;/ 8</p>
+    <p class="result-red {red > red ? 'active' : ''}"><strong>{red} </strong>&nbsp;/ 9</p>
 </header>
-<table class="key" class:key={key}>
-    <tbody>
+<div class="board key" class:key={key} class:end={endplay}>
     {#each Array(5) as _, rowIndex}
-        <tr>
-            {#each Array(5) as _, colIndex}
-                <td>
-                    <button
-                            on:click={() => handleClick(rowIndex * 5 + colIndex)}
-                            class="class-{combinedArray[rowIndex * 5 + colIndex].value} {combinedArray[rowIndex * 5 + colIndex].clicked ? 'clicked' : ''}">
+        {#each Array(5) as _, colIndex}
+            <div class="card">
+                <button
+                        disabled={endplay}
+                        on:click={() => handleClick(rowIndex * 5 + colIndex)}
+                        class="class-{combinedArray[rowIndex * 5 + colIndex].value} {combinedArray[rowIndex * 5 + colIndex].clicked ? 'clicked' : ''}">
                     <span>{combinedArray[rowIndex * 5 + colIndex].word}</span>
                     {#if combinedArray[rowIndex * 5 + colIndex].clicked}
                         {#if (combinedArray[rowIndex * 5 + colIndex].image)}
                             <img src={combinedArray[rowIndex * 5 + colIndex].image}>
                         {/if}
                     {/if}
-                    </button>
-                </td>
-            {/each}
-        </tr>
+                </button>
+            </div>
+        {/each}
     {/each}
-    </tbody>
-</table>
+</div>
 
 <footer>
     <button on:click={reloadBoard}>Generuj nowa tablice</button>
@@ -645,14 +648,22 @@
         background-color: #cd171d;
     }
 
-    table {
-        width: 80%;
-        margin: auto;
-        border-spacing: 12px;
+    .board {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: repeat(5, 1fr);
     }
 
-    td {
-        width: 20% !important;
+    .board:not(.end):has(.card:hover) .card:not(:hover) {
+        transform: scale(0.95);
+        opacity: 0.6;
+    }
+
+    .card {
+        transition: all 0.3s cubic-bezier(.25, .8, .25, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+
         border-radius: 12px;
         font-family: Calibri;
         background-color: #c1aa92;
@@ -662,7 +673,17 @@
         border: 0;
     }
 
-    td button {
+    .card:hover {
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    }
+
+    .card button[disabled] {
+        transition: none !important;
+        transform: none !important;
+        opacity: 1 !important;
+    }
+
+    .card button {
         transition: all 0.2s ease;
         aspect-ratio: 1;
         width: 90%;
@@ -676,25 +697,24 @@
     }
 
 
-
-    td button:not(.clicked):hover {
+    .card button:not(.clicked):hover {
         background-color: rgba(255, 255, 255, 0.2);
         inset: 6px;
         border-radius: 50%;
     }
 
-    td button.clicked {
+    .card button.clicked {
         cursor: not-allowed;
 
     }
 
-    td span {
+    .card span {
         display: inline-block;
         padding: 1rem;
         transition: 0.2s ease-in-out;
     }
 
-    td img {
+    .card img {
         display: none;
         position: absolute;
         width: 100%;
@@ -752,5 +772,27 @@
     footer button {
         padding: 0.5rem;
         text-transform: uppercase;
+    }
+
+    .active {
+        animation: pulse 2s infinite;
+        transform: scale(1);
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7);
+        }
+
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+        }
     }
 </style>
