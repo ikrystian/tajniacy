@@ -579,7 +579,7 @@
     <p class="result-blue"><strong>{blue} </strong>&nbsp;/ 8</p>
     <p class="result-red"><strong>{red} </strong>&nbsp;/ 9</p>
 </header>
-<table border="1" class="key" class:key={key}>
+<table class="key" class:key={key}>
     <tbody>
     {#each Array(5) as _, rowIndex}
         <tr>
@@ -647,19 +647,24 @@
         width: 100%;
         margin: auto;
         height: 80vh;
+        border-spacing: 12px;
     }
 
     td {
-        width: 20%;
+        width: 20% !important;
         height: 20%;
         font-size: 2vh;
         text-transform: uppercase;
-        font-family: verdana;
+        font-family: Calibri;
         background-color: #c1aa92;
         text-align: center;
         position: relative;
-        transition: background-color 0.3s;
         overflow: hidden;
+        border: 0;
+        border-radius: 5px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+        transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+
     }
 
     td span {
@@ -683,12 +688,17 @@
     td:hover {
         cursor: pointer;
         background-color: #dedede;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
     }
 
     td:hover span {
-        transform: scale(1.2);
+        transform: scale(1.1);
     }
 
+
+    .class-0 img {
+        filter: grayscale(1);
+    }
 
     .key .class-1, .class-1.clicked {
         background-color: #0475aa;
