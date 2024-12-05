@@ -1,8 +1,11 @@
 <script>
 
-    let username;
     import {navigate} from "svelte-routing";
     import {onMount} from "svelte";
+    import ChangeUsername from './ChangeUsername.svelte'; // Import the popup component
+
+    let username;
+    let showPopup = false;
 
     function newGame() {
         fetch('http://localhost:3000')
@@ -13,6 +16,19 @@
 
                 navigate(`/game/${id}`, { replace: true });
             })
+    }
+
+    function openPopup() {
+        showPopup = true;
+    }
+
+    function closePopup() {
+        showPopup = false;
+    }
+
+    function handleUsernameChange(newUsername) {
+        username = newUsername.detail;
+        closePopup();
     }
 
     onMount(() => {
@@ -27,4 +43,9 @@
     <h2>Witaj <strong>{username}</strong></h2>
     <button type="button" on:click={() => newGame()}>Stwórz grę</button>
     <button>Dołącz do gry</button>
+    <button on:click={openPopup}>Zmień nazwę</button>
 </div>
+
+{#if showPopup}
+<ChangeUsername on:change={handleUsernameChange} on:close={closePopup} />
+{/if}
