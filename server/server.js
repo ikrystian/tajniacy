@@ -1,5 +1,4 @@
 import http from 'http';
-import seedrandom from 'seedrandom';
 import { URL } from 'url';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
@@ -18,11 +17,19 @@ async function getAllWords(db) {
     return rows.map(row => row.word);
 }
 
-// Funkcja do generowania losowych słów na podstawie ziarna
-function generateWords(words, seed, count = 20) {
-    const rng = seedrandom(seed);
-    const shuffledWords = words.slice().sort(() => rng() - 0.5);
-    return shuffledWords.slice(0, count);
+// Funkcja asynchroniczna do pobrania lub stworzenia sesji
+async function getSession(db, id) {
+    const session = await db.get('SELECT words FROM sessions WHERE id = ?', id);
+    if (session) {
+        return JSON.parse(session.words);
+    }
+    return null;
+}
+
+// Funkcja asynchroniczna do zapisania sesji
+async function saveSession(db, id, words) {
+    const wordsJson = JSON.stringify(words);
+    await db.run('INSERT OR REPLACE INTO sessions (id, words) VALUES (?, ?)', id, wordsJson);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -31,29 +38,40 @@ const server = http.createServer(async (req, res) => {
     const path = reqUrl.pathname;
 
     if (path === '/') {
-        // Endpoint główny, obsługuje GET z opcjonalnym parametrem id
         const id = reqUrl.searchParams.get('id');
 
         const db = await openDatabase();
-        const words = await getAllWords(db);
-        await db.close();
+        const allWords = await getAllWords(db);
 
         if (id) {
-            // Jeśli podano id, odtwarzamy tablicę
-            const randomWords = generateWords(words, id);
+            // Pobieramy istniejącą sesję
+            let sessionWords = await getSession(db, id);
+
+            if (!sessionWords) {
+                res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ error: 'Sesja o podanym id nie istnieje' }));
+                await db.close();
+                return;
+            }
 
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(JSON.stringify({ id, words: randomWords }));
+            res.end(JSON.stringify({ id, words: sessionWords }));
         } else {
-            // Jeśli nie podano id, generujemy nowe id
+            // Generujemy nowe id i tablicę słów
             const newId = Date.now().toString();
-            const randomWords = generateWords(words, newId);
+            const shuffledWords = allWords.slice().sort(() => Math.random() - 0.5);
+            const randomWords = shuffledWords.slice(0, 20);
+
+            // Zapisujemy sesję w bazie danych
+            await saveSession(db, newId, randomWords);
 
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ id: newId, words: randomWords }));
         }
+
+        await db.close();
     } else if (path === '/replace' && method === 'POST') {
-        // Endpoint do zamiany słowa, oczekuje na POST z id i word
+        // Obsługa zamiany słowa
         let body = '';
         req.on('data', chunk => {
             body += chunk.toString();
@@ -70,35 +88,47 @@ const server = http.createServer(async (req, res) => {
 
                 const db = await openDatabase();
                 const allWords = await getAllWords(db);
-                await db.close();
 
-                // Odtwarzamy pierwotną tablicę
-                const originalWords = generateWords(allWords, id);
+                // Pobieramy istniejącą sesję
+                let sessionWords = await getSession(db, id);
 
-                if (!originalWords.includes(word)) {
+                if (!sessionWords) {
+                    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({ error: 'Sesja o podanym id nie istnieje' }));
+                    await db.close();
+                    return;
+                }
+
+                if (!sessionWords.includes(word)) {
                     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
                     res.end(JSON.stringify({ error: 'Słowo do zamiany nie znajduje się w tablicy' }));
+                    await db.close();
                     return;
                 }
 
                 // Lista słów, które nie są w tablicy
-                const remainingWords = allWords.filter(w => !originalWords.includes(w));
+                const remainingWords = allWords.filter(w => !sessionWords.includes(w));
 
                 if (remainingWords.length === 0) {
                     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
                     res.end(JSON.stringify({ error: 'Brak dostępnych słów do zamiany' }));
+                    await db.close();
                     return;
                 }
 
                 // Wybieramy losowe słowo do zamiany
-                const rng = seedrandom();
-                const newWord = remainingWords[Math.floor(rng() * remainingWords.length)];
+                const newWord = remainingWords[Math.floor(Math.random() * remainingWords.length)];
 
                 // Tworzymy nową tablicę z zamienionym słowem
-                const updatedWords = originalWords.map(w => (w === word ? newWord : w));
+                const updatedWords = sessionWords.map(w => (w === word ? newWord : w));
+
+                // Aktualizujemy sesję w bazie danych
+                await saveSession(db, id, updatedWords);
 
                 res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
                 res.end(JSON.stringify({ id, words: updatedWords }));
+
+                await db.close();
             } catch (error) {
                 console.error('Błąd podczas przetwarzania żądania:', error);
                 res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -106,7 +136,6 @@ const server = http.createServer(async (req, res) => {
             }
         });
     } else {
-        // Obsługa nieznanych endpointów
         res.writeHead(404);
         res.end('Not Found');
     }

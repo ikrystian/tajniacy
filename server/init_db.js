@@ -11,6 +11,7 @@ async function initDatabase() {
 
     await db.exec('CREATE TABLE IF NOT EXISTS words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT)');
 
+
     const insert = 'INSERT INTO words (word) VALUES (?)';
     const stmt = await db.prepare(insert);
 
@@ -19,6 +20,14 @@ async function initDatabase() {
     }
 
     await stmt.finalize();
+
+    await db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      words TEXT
+    )
+  `);
+
     await db.close();
 
     console.log('Baza danych została zainicjalizowana.');
