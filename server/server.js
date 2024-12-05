@@ -262,7 +262,12 @@ wss.on('connection', (ws) => {
             const data = JSON.parse(message);
 
             const db = await openDatabase();
-
+            if(data.type === 'log') {
+                broadcastToSession(data.id, {
+                    type: 'log',
+                    message: data.message
+                });  
+            }
             if (data.type === 'join') {
                 // Klient dołącza do sesji
                 const { id, username } = data;

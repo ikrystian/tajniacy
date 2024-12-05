@@ -2,7 +2,7 @@
 
     import {navigate} from "svelte-routing";
     import {onMount} from "svelte";
-    import ChangeUsername from './ChangeUsername.svelte'; // Import the popup component
+    import ChangeUsername from './ChangeUsername.svelte';
 
     let username;
     let showPopup = false;

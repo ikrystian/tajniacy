@@ -12,6 +12,10 @@
         console.log(message)
     }
 
+    function logAction(message) {
+        ws.send(JSON.stringify({ type: 'log', id, message }));
+    }
+
     function connectWebSocket() {
         ws = new WebSocket('ws://localhost:3000');
 
@@ -24,7 +28,7 @@
             console.log(event);
             const data = JSON.parse(event.data);
             console.log('Otrzymano wiadomość:', data);
-
+            
             if (data.type === 'session') {
                 currentSessionId = data.id;
                 words = data.words;
@@ -36,6 +40,8 @@
                 log(`Słowa: ${JSON.stringify(words, null, 2)}`);
             } else if (data.type === 'newConnect') {
                 log(`Do sesji dołączył: ${data.username}`);
+            } else if (data.type==='log') {
+                log(data.message);
             } else if (data.type === 'error') {
                 log(`Błąd: ${data.message}`);
             }
@@ -51,11 +57,16 @@
         };
     }
 
-    function replaceWord() {
-        if (currentSessionId && ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({type: 'replace', id: currentSessionId, word: wordToReplace}));
+    function replaceWord(word) {
+        const confirmed = confirm(`Are you sure you want to replace the word "${word}"?`);
+        if (confirmed) {
+            if (currentSessionId && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'replace', id: currentSessionId, word }));
+            } else {
+                log('Nie jesteś połączony z żadną sesją lub połączenie WebSocket nie jest otwarte.');
+            }
         } else {
-            log('Nie jesteś połączony z żadną sesją lub połączenie WebSocket nie jest otwarte.');
+            log('Zamiana słowa została anulowana.');
         }
     }
 
@@ -95,29 +106,34 @@
     .role {
         color: gray;
     }
+
+    .replace-word {
+        opacity: 0;
+        margin-left: 0.5rem;
+        pointer-events: none;
+    }
+
+    li:hover .replace-word {
+        opacity: 1;
+        pointer-events: all
+    }
 </style>
 
 <div class="container">
-    <h1>Klient WebSocket w Svelte</h1>
+    <h1>Poczekalnia</h1>
 
-    <div>
-        <label for="wordToReplace">Słowo do zamiany:</label>
-        <input type="text" id="wordToReplace" bind:value="{wordToReplace}">
-        <button on:click="{replaceWord}">Zamień słowo</button>
-    </div>
 
     {#if words.length > 0}
         <h2>Słowa w sesji:</h2>
         <ul class="words-list">
             {#each words as item}
                 <li>
-                    <span class="word">{item.word}</span> - <span class="role">{item.role}</span>
+                    <span class="word">{item.word}</span> - <span class="role">{item.role}</span> <button class="replace-word" on:click={() => { replaceWord(item.word) }}>Wymień słowo</button>
                 </li>
             {/each}
         </ul>
     {/if}
 
-    <button type="button" on:click={captain(JSON.stringify(localStorage.getItem('username')))}>Zostań kapitanem</button>
 
     <h2>Log:</h2>
     <div class="log">{output}</div>
