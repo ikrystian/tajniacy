@@ -1,7 +1,7 @@
 import http from 'http';
-import { URL } from 'url';
+import {URL} from 'url';
 import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
+import {open} from 'sqlite';
 
 // Funkcja asynchroniczna do otwarcia bazy danych
 async function openDatabase() {
@@ -19,17 +19,25 @@ async function getAllWords(db) {
 
 // Funkcja asynchroniczna do pobrania lub stworzenia sesji
 async function getSession(db, id) {
-    const session = await db.get('SELECT words FROM sessions WHERE id = ?', id);
+    const session = await db.get('SELECT words, replace_count FROM sessions WHERE id = ?', id);
     if (session) {
-        return JSON.parse(session.words);
+        return {
+            words: JSON.parse(session.words),
+            replaceCount: session.replace_count
+        };
     }
     return null;
 }
 
 // Funkcja asynchroniczna do zapisania sesji
-async function saveSession(db, id, words) {
+async function saveSession(db, id, words, replaceCount) {
     const wordsJson = JSON.stringify(words);
-    await db.run('INSERT OR REPLACE INTO sessions (id, words) VALUES (?, ?)', id, wordsJson);
+    await db.run(
+        'INSERT OR REPLACE INTO sessions (id, words, replace_count) VALUES (?, ?, ?)',
+        id,
+        wordsJson,
+        replaceCount
+    );
 }
 
 const server = http.createServer(async (req, res) => {
@@ -48,22 +56,25 @@ const server = http.createServer(async (req, res) => {
             let sessionWords = await getSession(db, id);
 
             if (!sessionWords) {
-                res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({ error: 'Sesja o podanym id nie istnieje' }));
+                res.writeHead(404, {'Content-Type': 'application/json; charset=utf-8'});
+                res.end(JSON.stringify({error: 'Sesja o podanym id nie istnieje'}));
                 await db.close();
                 return;
             }
 
-            res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(JSON.stringify({ id, words: sessionWords }));
+            res.writeHead(200, {'Content-Type': 'application/json; charset=utf-8'});
+            res.end(JSON.stringify({id, words: sessionWords}));
         } else {
             // Generujemy nowe id i tablicę słów
             const newId = Date.now().toString();
             const shuffledWords = allWords.slice().sort(() => Math.random() - 0.5);
             const randomWords = shuffledWords.slice(0, 20);
 
+            // Inicjalizujemy licznik zamian na 0
+            const replaceCount = 0;
+
             // Zapisujemy sesję w bazie danych
-            await saveSession(db, newId, randomWords);
+            await saveSession(db, newId, randomWords, replaceCount);
 
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
             res.end(JSON.stringify({ id: newId, words: randomWords }));
@@ -78,11 +89,11 @@ const server = http.createServer(async (req, res) => {
         });
         req.on('end', async () => {
             try {
-                const { id, word } = JSON.parse(body);
+                const {id, word} = JSON.parse(body);
 
                 if (!id || !word) {
-                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-                    res.end(JSON.stringify({ error: 'Brak id lub słowa do zamiany' }));
+                    res.writeHead(400, {'Content-Type': 'application/json; charset=utf-8'});
+                    res.end(JSON.stringify({error: 'Brak id lub słowa do zamiany'}));
                     return;
                 }
 
@@ -90,18 +101,27 @@ const server = http.createServer(async (req, res) => {
                 const allWords = await getAllWords(db);
 
                 // Pobieramy istniejącą sesję
-                let sessionWords = await getSession(db, id);
+                let session = await getSession(db, id);
 
-                if (!sessionWords) {
-                    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
-                    res.end(JSON.stringify({ error: 'Sesja o podanym id nie istnieje' }));
+                if (!session) {
+                    res.writeHead(404, {'Content-Type': 'application/json; charset=utf-8'});
+                    res.end(JSON.stringify({error: 'Sesja o podanym id nie istnieje'}));
+                    await db.close();
+                    return;
+                }
+
+                const {words: sessionWords, replaceCount} = session;
+
+                if (replaceCount >= 3) {
+                    res.writeHead(400, {'Content-Type': 'application/json; charset=utf-8'});
+                    res.end(JSON.stringify({error: 'Limit zamian słów został wyczerpany dla tej sesji'}));
                     await db.close();
                     return;
                 }
 
                 if (!sessionWords.includes(word)) {
-                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-                    res.end(JSON.stringify({ error: 'Słowo do zamiany nie znajduje się w tablicy' }));
+                    res.writeHead(400, {'Content-Type': 'application/json; charset=utf-8'});
+                    res.end(JSON.stringify({error: 'Słowo do zamiany nie znajduje się w tablicy'}));
                     await db.close();
                     return;
                 }
@@ -110,8 +130,8 @@ const server = http.createServer(async (req, res) => {
                 const remainingWords = allWords.filter(w => !sessionWords.includes(w));
 
                 if (remainingWords.length === 0) {
-                    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-                    res.end(JSON.stringify({ error: 'Brak dostępnych słów do zamiany' }));
+                    res.writeHead(400, {'Content-Type': 'application/json; charset=utf-8'});
+                    res.end(JSON.stringify({error: 'Brak dostępnych słów do zamiany'}));
                     await db.close();
                     return;
                 }
@@ -122,17 +142,20 @@ const server = http.createServer(async (req, res) => {
                 // Tworzymy nową tablicę z zamienionym słowem
                 const updatedWords = sessionWords.map(w => (w === word ? newWord : w));
 
-                // Aktualizujemy sesję w bazie danych
-                await saveSession(db, id, updatedWords);
+                // Zwiększamy licznik zamian
+                const newReplaceCount = replaceCount + 1;
 
-                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({ id, words: updatedWords }));
+                // Aktualizujemy sesję w bazie danych
+                await saveSession(db, id, updatedWords, newReplaceCount);
+
+                res.writeHead(200, {'Content-Type': 'application/json; charset=utf-8'});
+                res.end(JSON.stringify({id, words: updatedWords}));
 
                 await db.close();
             } catch (error) {
                 console.error('Błąd podczas przetwarzania żądania:', error);
-                res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-                res.end(JSON.stringify({ error: 'Internal Server Error' }));
+                res.writeHead(500, {'Content-Type': 'application/json; charset=utf-8'});
+                res.end(JSON.stringify({error: 'Internal Server Error'}));
             }
         });
     } else {
