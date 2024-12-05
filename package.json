@@ -16,6 +16,8 @@
   "dependencies": {
     "@next/env": "^15.0.3",
     "seedrandom": "^3.0.5",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "ws": "^8.18.0"
   }
 }
